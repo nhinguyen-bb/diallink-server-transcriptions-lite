@@ -1,0 +1,101 @@
+name: Server transcriptions Workflow Dev
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  build:
+    name: Build and Deploy transcriptions Dev
+    if: github.event_name == 'push' || (github.actor != 'inperium-ci' && github.event.pull_request.draft == false)
+    runs-on:
+      group: Default Larger Runners
+      labels: ubuntu-latest-8-cores
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_OUTPUT: json
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_DEV_QA }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV_QA }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV_QA }}
+      K8S_CLUSTER_NAME_US: ${{ vars.K8S_CLUSTER_NAME_US }}
+      K8S_CLUSTER_NAME_EU: ${{ vars.K8S_CLUSTER_NAME_EU }}
+      IMAGE_NAME: diallink-ecr-server-transcriptions-lite
+      IMAGE_PLATFORMS: linux/amd64
+      K8S_NAMESPACE: dev
+      ENV_ARCH: amd64
+      IMAGE_TAG: ${{ github.sha }}
+      DEPLOYMENT_NAME: ${{ github.event.repository.name }}
+    steps:
+
+      - name: Checkout to the ref branch
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+          ref: ${{ github.ref }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Update US EKS kubeConfig
+        run: |
+          aws eks update-kubeconfig --name $K8S_CLUSTER_NAME_US --region $AWS_DEFAULT_REGION
+
+#      - name: Build Docker image base modal and push it to AWS ECR
+#        run: |
+#          aws ecr batch-delete-image --repository-name whisperx-base --image-ids "$(aws ecr list-images --repository-name whisperx-base --query 'imageIds[?(@.imageTag==`base`)]' --output json | jq -c '.[]')" || true
+#          cd deployment/dockerfiles/base
+#          docker buildx build \
+#            --platform $IMAGE_PLATFORMS \
+#            --output "type=image,push=true" \
+#            --tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/whisperx-base:base \
+#            --file ./Dockerfile ./ \
+#            --build-arg ENV_ARCH=${ENV_ARCH} \
+#            --build-arg AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} \
+#            --build-arg AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+
+#      - name: Build Docker image base modal and push it to AWS ECR
+#        run: |
+#          aws ecr batch-delete-image --repository-name whisperx-base --image-ids "$(aws ecr list-images --repository-name whisperx-base --query 'imageIds[?(@.imageTag==`cuda`)]' --output json | jq -c '.[]')" || true
+#          cp requirements-cuda.txt deployment/dockerfiles/base
+#          cd deployment/dockerfiles/base
+#          docker buildx build \
+#            --platform $IMAGE_PLATFORMS \
+#            --output "type=image,push=true" \
+#            --tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/whisperx-base:cuda \
+#            --file ./cuda.Dockerfile ./ \
+#            --build-arg ENV_ARCH=${ENV_ARCH} \
+#            --build-arg AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} \
+#            --build-arg AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+
+      - name: Build Docker image base modal and push it to AWS ECR
+        run: |
+          cp deployment/dockerfiles/base/base.Dockerfile requirements.txt app
+          cd app
+          docker buildx build \
+            --platform $IMAGE_PLATFORMS \
+            --output "type=image,push=true" \
+            --tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_NAME:$IMAGE_TAG \
+            --file ./base.Dockerfile ./ \
+            --build-arg ENV_ARCH=${ENV_ARCH} \
+            --build-arg AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} \
+            --build-arg AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+
+      - name: Deploy to US EKS using Helm Chart
+        run: |
+          sed -i "s/tag: \"latest\"/tag: \"$IMAGE_TAG\"/g" deployment/diallink_transcriptions/values.yaml
+          helm upgrade --install diallink-ecr-server-transcriptions-lite ./deployment/diallink_transcriptions -f deployment/diallink_transcriptions/values.yaml  \
+            --namespace $K8S_NAMESPACE --set-string podAnnotations.reloader=$(date +%s)

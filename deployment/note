@@ -1,0 +1,3 @@
+helm upgrade -n dev --install diallink-server-transcriptions  ./dev/diallink_transcriptions/ --values dev/diallink_transcriptions/values.yaml --set-string podAnnotations.reloader=$(date +%s)
+helm upgrade -n qa --install diallink-server-transcriptions  ./qa/diallink_transcriptions/ --values qa/diallink_transcriptions/values.yaml --set-string podAnnotations.reloader=$(date +%s)
+helm upgrade -n prod-green --install diallink-ecr-server-transcriptions-lite  ./prod/diallink_transcriptions/ --values prod/diallink_transcriptions/values.yaml --set-string podAnnotations.reloader=$(date +%s)

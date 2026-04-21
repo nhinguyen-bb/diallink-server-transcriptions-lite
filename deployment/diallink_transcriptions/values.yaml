@@ -1,0 +1,169 @@
+# Default values for diallink_transcriptions_lite.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: 770723094274.dkr.ecr.us-east-1.amazonaws.com/diallink-ecr-server-transcriptions-lite
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets:
+  - name: "ecr-secret"
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "secrets-access-sa"
+
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type:
+  port: 8080
+  targetPort: 8080
+#  nodePort: 8080
+
+
+
+resources:
+#  limits:
+#    cpu: 8000m
+#    memory: 10Gi
+#    nvidia.com/gpu: 1
+  requests:
+    cpu: 1000m
+    memory: 2Gi
+#    nvidia.com/gpu: 1
+
+
+
+ingress:
+  enabled: true
+
+  ingresses:
+    internal:
+      enabled: true
+      className: alb
+      annotations:
+        kubernetes.io/ingress.class: alb
+        alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09
+        alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300,client_keep_alive.seconds=3600
+        alb.ingress.kubernetes.io/subnets: subnet-00e5c595cf5aaf2a7,subnet-0cea23f87db376b7f
+        alb.ingress.kubernetes.io/load-balancer-name: diallink-alb-internal-dev
+        alb.ingress.kubernetes.io/group.name: diallink-alb-internal-dev
+        alb.ingress.kubernetes.io/scheme: internal
+        alb.ingress.kubernetes.io/target-type: ip
+        alb.ingress.kubernetes.io/security-groups: sg-09de4ca49c4361ef3,sg-040f1708f1da0caea,sg-0a2dee7183201e409
+        alb.ingress.kubernetes.io/certificate-arn: >
+          arn:aws:acm:us-east-1:770723094274:certificate/5918b76e-d851-4754-a2f4-69f6b9d8e600,
+          arn:aws:acm:us-east-1:770723094274:certificate/b1de4372-a7a0-4c5a-b66c-18e2f6e5ea07
+
+        alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
+        alb.ingress.kubernetes.io/ssl-redirect: '443'
+
+        alb.ingress.kubernetes.io/healthcheck-path: /healthz
+        alb.ingress.kubernetes.io/healthcheck-interval-seconds: '60'
+        alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+        alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+        alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+        alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+        external-dns.alpha.kubernetes.io/hostname: us-1.api.internal.diallink.dev
+        alb.ingress.kubernetes.io/backend-protocol: HTTP
+
+      hosts:
+        - host: us-1.api.internal.diallink.dev
+          paths:
+            - path: /v1/transcriptions-lite
+              pathType: ImplementationSpecific
+            - path: /v1/transcriptions-lite/*
+              pathType: ImplementationSpecific
+
+    external:
+      enabled: true
+      className: alb
+      annotations:
+        kubernetes.io/ingress.class: alb
+        alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09
+        alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300,client_keep_alive.seconds=1800
+        alb.ingress.kubernetes.io/subnets: subnet-0df0f04d1c7819f23,subnet-0f8a4e738c894e61f
+        alb.ingress.kubernetes.io/load-balancer-name: diallink-alb-external-dev
+        alb.ingress.kubernetes.io/group.name: diallink-alb-external-dev
+        alb.ingress.kubernetes.io/scheme: internet-facing
+        alb.ingress.kubernetes.io/target-type: ip
+        alb.ingress.kubernetes.io/security-groups: sg-06bd0b4c9d165d6a3,sg-0a2dee7183201e409,sg-0c111c759861e37fc
+        alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:770723094274:certificate/5918b76e-d851-4754-a2f4-69f6b9d8e600
+        alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
+
+        alb.ingress.kubernetes.io/healthcheck-path: /healthz
+        alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+        alb.ingress.kubernetes.io/healthcheck-interval-seconds: '60'
+
+        external-dns.alpha.kubernetes.io/hostname: us-1.api.diallink.dev
+        alb.ingress.kubernetes.io/backend-protocol: HTTP
+
+      hosts:
+        - host: us-1.api.diallink.dev
+          paths:
+            - path: /v1/transcriptions-lite
+              pathType: ImplementationSpecific
+            - path: /v1/transcriptions-lite/*
+              pathType: ImplementationSpecific
+
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 90
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector:
+  env: openai-2xlarge
+
+tolerations: []
+
+affinity: {}
+
+secrets:
+  envSecretName: env-server-transcriptions-secrets
+
+env:
+  - name: API_KEY
+    value: "17518a48-ce28-4ca6-ac2f-3ded502e659a+0cf2130c-5c12-4fb3-a568-2c9df6d0b723"
+  - name: ASR_DEVICE
+    value: "cpu"
+  - name: ASR_COMPUTE_TYPE
+    value: "int8"
+  - name: HUGGINGFACE_ACCESS_TOKEN
+    value: ""
+  - name: WHISPER_MODEL
+    value: "medium"
+  - name: DATABASE_URL
+    value: "postgresql+asyncpg://transcription_dev:KsCMxF669GyX@database_us-east-1.diallink.dev:5432/transcription_dev"
+  - name: S3_BUCKET
+    value: "diallink-transcription-audio"
+  - name: AWS_REGION
+    value: "us-east-1"
+#  NVIDIA_VISIBLE_DEVICES: "all"
+#  NVIDIA_DRIVER_CAPABILITIES: "all"
+

@@ -1,0 +1,58 @@
+[tool.black]
+line-length = 120
+target-version = ['py39']
+
+[tool.isort]
+profile = "black"
+line_length = 120
+multi_line_output = 3
+skip = ["venv_test", "venv"]
+
+[tool.mypy]
+junit_xml = "tests/linter/test-results/mypy.xml"
+follow_imports = "skip"
+exclude = [
+    "venv",
+    ".venv",
+]
+
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+
+select = [
+    "EM",
+    "UP",
+    "C4",
+    "F",
+    "Q",
+    "W",
+    "C90",
+    "T20",
+    "PLC",
+]
+
+ignore = [
+    "S101", # Use of `assert` detected
+    "A003", # Class attribute `help` is shadowing a python builtin
+    "EM10", # Exception must not use a string literal, assign to variable first
+    "C901", # Too complex method/function
+    "UP012", # Unnecessary pass statement
+    "UP009", # UTF-8 encoding declaration is unnecessary
+    "C416", # Unnecessary list comprehension
+    "F811", # Redefinition of unused
+]
+
+# Exclude a variety of commonly ignored directories.
+exclude = ["venv", "venv_test"]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Assume Python 3.9.
+target-version = "py39"
+
+[tool.ruff.mccabe]
+# Unlike Flake8, default to a complexity level of 10.
+max-complexity = 10

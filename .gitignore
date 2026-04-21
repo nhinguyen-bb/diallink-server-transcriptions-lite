@@ -1,0 +1,10 @@
+*.pyc
+*.swp
+*.log
+.idea
+.venv
+venv
+tests/test-results/
+app/logs/*
+app/audios/*
+.env

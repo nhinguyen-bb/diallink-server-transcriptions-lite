@@ -1,0 +1,144 @@
+# Default values for diallink_transcriptions_lite.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: 770723094274.dkr.ecr.us-east-1.amazonaws.com/diallink-ecr-server-transcriptions-lite
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets:
+  - name: "ecr-secret"
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "secrets-access-sa"
+
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: NodePort
+  port: 8080
+  targetPort: 8080
+
+
+ingress:
+  enabled: true
+
+  ingresses:
+    internal:
+      enabled: true
+      className: alb
+      annotations:
+        kubernetes.io/ingress.class: alb
+        alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09
+        alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300,client_keep_alive.seconds=1800
+
+        alb.ingress.kubernetes.io/subnets: subnet-0afb6c2a5492eb497,subnet-0f4fd239a71dd8b82
+        alb.ingress.kubernetes.io/load-balancer-name: diallink-alb-internal-prod
+        alb.ingress.kubernetes.io/group.name: diallink-alb-internal-prod
+        alb.ingress.kubernetes.io/scheme: internal
+        alb.ingress.kubernetes.io/target-type: ip
+        alb.ingress.kubernetes.io/security-groups: sg-0cd0cf682423520e0
+        alb.ingress.kubernetes.io/certificate-arn: >
+          arn:aws:acm:us-east-1:029754069917:certificate/c1474a91-a460-4952-a2a6-65e5747eb13f,
+          arn:aws:acm:us-east-1:029754069917:certificate/5a498bd1-4e75-403c-8669-b1470f3a5432
+
+        alb.ingress.kubernetes.io/backend-protocol: HTTP
+        alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
+        alb.ingress.kubernetes.io/ssl-redirect: '443'
+
+        alb.ingress.kubernetes.io/healthcheck-path: /healthz
+        alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+        alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+        alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+        alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+        alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+
+        external-dns.alpha.kubernetes.io/hostname: us-1.api.internal.diallink.com
+      hosts:
+        - host: us-1.api.internal.diallink.com
+          paths:
+            - path: /v1/transcriptions
+              pathType: ImplementationSpecific
+
+    external:
+      enabled: true
+      className: alb
+      annotations:
+        kubernetes.io/ingress.class: alb
+        alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09
+        alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300,client_keep_alive.seconds=1800
+
+        alb.ingress.kubernetes.io/subnets: subnet-04226df5450376558,subnet-03fc0d03eb92e9e77
+        alb.ingress.kubernetes.io/load-balancer-name: diallink-alb-external-prod
+        alb.ingress.kubernetes.io/group.name: diallink-alb-external-prod
+        alb.ingress.kubernetes.io/scheme: internet-facing
+        alb.ingress.kubernetes.io/target-type: ip
+        alb.ingress.kubernetes.io/security-groups: sg-0d96ccb8206bcc1a1
+        alb.ingress.kubernetes.io/certificate-arn: >
+          arn:aws:acm:us-east-1:029754069917:certificate/dbf986ca-c239-4226-b0b6-85b4a8af3ad5,
+          arn:aws:acm:us-east-1:029754069917:certificate/8771d9b4-2988-4a2b-a594-9aaca3e9a0c0,
+          arn:aws:acm:us-east-1:029754069917:certificate/5a498bd1-4e75-403c-8669-b1470f3a5432,
+          arn:aws:acm:us-east-1:029754069917:certificate/45822653-add8-4d4c-becc-834c7c9196d9
+        alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
+
+        alb.ingress.kubernetes.io/healthcheck-path: /healthz
+        alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+        alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+
+        external-dns.alpha.kubernetes.io/hostname: us-1.api.diallink.com
+        alb.ingress.kubernetes.io/backend-protocol: HTTP
+
+      hosts:
+        - host: us-1.api.diallink.com
+          paths:
+            - path: /v1/transcriptions
+              pathType: ImplementationSpecific
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 600Mi
+  requests:
+    cpu: 150m
+    memory: 400Mi
+
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 90
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector:
+  env: openai
+
+tolerations: []
+
+affinity: {}
+
+secrets:
+  envSecretName: env-server-diallink-transcriptions
