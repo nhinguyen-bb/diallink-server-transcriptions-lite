@@ -30,7 +30,7 @@ jobs:
       - name: Checkout to the ref branch
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.PAT || github.token }}
           ref: ${{ github.ref }}
 
       - name: Configure AWS credentials
