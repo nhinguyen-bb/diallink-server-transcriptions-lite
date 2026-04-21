@@ -10,7 +10,6 @@ jobs:
     name: Build and Deploy transcriptions Dev
     if: github.event_name == 'push' || (github.actor != 'inperium-ci' && github.event.pull_request.draft == false)
     runs-on:
-      group: Default Larger Runners
       labels: ubuntu-latest-8-cores
     env:
       AWS_DEFAULT_REGION: us-east-1
